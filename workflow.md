@@ -253,7 +253,7 @@ git push origin main
 
 專案完成時應符合以下條件：
 
-- [ ] 使用有效 API Key 完成 CWA 線上資料驗收。
+- [x] 使用有效 API Key 完成 CWA 線上資料驗收。
 - [x] 已實作 CWA API 請求與逾時、HTTP、JSON 錯誤處理。
 - [x] 可正確解析最低與最高氣溫。
 - [x] SQLite 表格與唯一限制建立完成。

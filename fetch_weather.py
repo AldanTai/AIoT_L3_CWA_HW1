@@ -4,10 +4,13 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from datetime import datetime
+import ssl
 from typing import Any
+from urllib.parse import quote
 
 import pandas as pd
 import requests
+from requests.adapters import HTTPAdapter
 
 
 DEFAULT_DATASET_ID = "F-C0032-001"
@@ -17,6 +20,25 @@ FORECAST_COLUMNS = ["regionName", "dataDate", "mint", "maxt"]
 
 class WeatherAPIError(RuntimeError):
     """CWA API 請求或回應格式錯誤。"""
+
+
+class _CompatibleTLSAdapter(HTTPAdapter):
+    """保留 TLS 驗證，但兼容缺少非必要 SKI 欄位的憑證鏈。"""
+
+    def init_poolmanager(self, *args: Any, **kwargs: Any) -> None:
+        context = ssl.create_default_context()
+        if hasattr(ssl, "VERIFY_X509_STRICT"):
+            context.verify_flags &= ~ssl.VERIFY_X509_STRICT
+        kwargs["ssl_context"] = context
+        super().init_poolmanager(*args, **kwargs)
+
+
+def _redact_secret(message: str, secret: str) -> str:
+    """避免 API Key 出現在例外、URL 或日誌。"""
+    redacted = message.replace(secret, "***") if secret else message
+    if secret:
+        redacted = redacted.replace(quote(secret, safe=""), "***")
+    return redacted
 
 
 def fetch_weather_data(
@@ -29,17 +51,20 @@ def fetch_weather_data(
         raise WeatherAPIError("尚未設定 CWA API Key。")
 
     try:
-        response = requests.get(
-            API_URL.format(dataset_id=dataset_id),
-            params={"Authorization": api_key.strip(), "format": "JSON"},
-            timeout=timeout,
-        )
+        with requests.Session() as session:
+            session.mount("https://", _CompatibleTLSAdapter())
+            response = session.get(
+                API_URL.format(dataset_id=dataset_id),
+                params={"Authorization": api_key.strip(), "format": "JSON"},
+                timeout=timeout,
+            )
         response.raise_for_status()
         payload = response.json()
     except requests.Timeout as exc:
         raise WeatherAPIError("連線中央氣象署逾時，請稍後再試。") from exc
     except requests.RequestException as exc:
-        raise WeatherAPIError(f"無法取得中央氣象署資料：{exc}") from exc
+        detail = _redact_secret(str(exc), api_key.strip())
+        raise WeatherAPIError(f"無法取得中央氣象署資料：{detail}") from exc
     except ValueError as exc:
         raise WeatherAPIError("中央氣象署回應不是有效的 JSON。") from exc
 
@@ -172,4 +197,3 @@ def records_from_frame(frame: pd.DataFrame) -> Iterable[tuple[str, str, float, f
     """將 DataFrame 轉為 SQLite executemany 所需的 tuple。"""
     for row in frame.itertuples(index=False):
         yield (str(row.regionName), str(row.dataDate), float(row.mint), float(row.maxt))
-

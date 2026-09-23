@@ -5,6 +5,6 @@ __pycache__/
 .coverage
 .env
 .streamlit/secrets.toml
+.streamlit/*.log
 data.db
 *.db-journal
-

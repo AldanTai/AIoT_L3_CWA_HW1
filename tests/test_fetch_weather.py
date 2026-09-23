@@ -1,7 +1,12 @@
 import unittest
 from unittest.mock import Mock, patch
 
-from fetch_weather import WeatherAPIError, fetch_weather_data, parse_temperature_forecasts
+from fetch_weather import (
+    WeatherAPIError,
+    _redact_secret,
+    fetch_weather_data,
+    parse_temperature_forecasts,
+)
 
 
 SAMPLE_PAYLOAD = {
@@ -68,11 +73,16 @@ class ParseForecastTests(unittest.TestCase):
 
 
 class FetchWeatherTests(unittest.TestCase):
+    def test_redacts_api_key_from_error(self) -> None:
+        message = _redact_secret("https://example.test?Authorization=secret-key", "secret-key")
+        self.assertNotIn("secret-key", message)
+        self.assertIn("***", message)
+
     def test_rejects_empty_api_key(self) -> None:
         with self.assertRaises(WeatherAPIError):
             fetch_weather_data("")
 
-    @patch("fetch_weather.requests.get")
+    @patch("fetch_weather.requests.Session.get")
     def test_fetches_valid_payload(self, get: Mock) -> None:
         response = Mock()
         response.json.return_value = SAMPLE_PAYLOAD
@@ -84,4 +94,3 @@ class FetchWeatherTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
