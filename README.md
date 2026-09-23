@@ -48,11 +48,14 @@ AIoT_L3_CWA_HW1/
 ├── app.py                  # Streamlit Web App 入口
 ├── fetch_weather.py        # CWA API 請求與 JSON 解析
 ├── database.py             # SQLite 建表、寫入與查詢
+├── map_view.py             # Folium 台灣天氣地圖
 ├── data.db                 # 執行後產生的本機資料庫
 ├── requirements.txt        # Python 套件清單
 ├── .gitignore              # 排除密鑰、快取與資料庫
 ├── .streamlit/
-│   └── secrets.toml        # 本機 API Key（不可提交）
+│   ├── secrets.toml.example # API Key 範例
+│   └── secrets.toml         # 本機 API Key（不可提交）
+├── tests/                  # API、資料庫與地圖單元測試
 ├── README.md
 └── workflow.md
 ```
@@ -112,6 +115,14 @@ streamlit run app.py
 ```
 
 啟動後依終端機顯示的網址，在瀏覽器開啟天氣儀表板。
+
+## 執行測試
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+目前測試涵蓋 JSON 解析、異常溫度、空白 API Key、SQLite UPSERT、參數化查詢、資料庫限制與地圖產生。
 
 ## 畫面規劃
 
